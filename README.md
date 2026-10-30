@@ -98,4 +98,10 @@ and inspect 22 fullscreen patterns for dead or stuck pixels. A dependency-free
 single-file Python/Tkinter desktop edition is included in
 `dead_pixel_test.py`.
 
-<h3 align="center">developed by <a href="https://github.com/ubeytkzltsss">github.com/ubeytkzltsss</a></h3>
+<p align="center">
+<img width="100" height="99" alt="resim" src="https://github.com/user-attachments/assets/7e14465d-bdef-421e-bc16-199a8646792e" />
+</p>
+
+<p align="center">
+  Developed by <b>Ubeyt</b>.
+</p>
