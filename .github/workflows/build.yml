@@ -1,0 +1,168 @@
+name: Build & Publish
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check single-file web + desktop source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate Python and embedded JavaScript
+        run: |
+          python -m py_compile dead_pixel_test.py
+          python dead_pixel_test.py --list > /dev/null
+          python - <<'PY'
+          import pathlib, re, sys
+          sys.path.insert(0, '.')
+          from dead_pixel_test import PATTERNS
+
+          html = pathlib.Path('index.html').read_text(encoding='utf-8')
+          match = re.search(r'<script>(.*)</script>', html, re.S)
+          assert match, 'inline script missing'
+          pathlib.Path('_check.js').write_text(match.group(1), encoding='utf-8')
+
+          web_ids = set(re.findall(r'\{id:"([a-z0-9]+)"', html))
+          py_ids = {p[0] for p in PATTERNS}
+          assert web_ids == py_ids, f'pattern mismatch: {web_ids ^ py_ids}'
+
+          for legacy in ('manifest.webmanifest', 'sw.js', 'icons/icon-', 'href="icon.svg"', 'installBtn'):
+              assert legacy not in html, f'legacy external reference remains: {legacy}'
+          assert html.count('data:image/jpeg;base64,') == 1
+          assert 'developed by <a href="https://github.com/ubeytkzltsss"' in html
+          print(f'OK: {len(py_ids)} patterns; index.html is self-contained')
+          PY
+          node --check _check.js
+
+  pages:
+    name: Publish GitHub Pages
+    needs: check
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage only the single-file website
+        run: |
+          mkdir -p _site
+          cp index.html _site/index.html
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  desktop:
+    name: Build desktop (${{ matrix.name }})
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            built: dist/DeadPixelTest.exe
+            artifact: DeadPixelTest-windows.exe
+          - name: macOS
+            os: macos-latest
+            built: dist/DeadPixelTest.app
+            artifact: DeadPixelTest-macos.zip
+          - name: Linux
+            os: ubuntu-latest
+            built: dist/DeadPixelTest
+            artifact: DeadPixelTest-linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Tk (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y python3-tk tk-dev
+
+      - name: Build with PyInstaller
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          pyinstaller --onefile --windowed --clean --name DeadPixelTest dead_pixel_test.py
+
+      - name: Package macOS app
+        if: runner.os == 'macOS'
+        run: cd dist && zip -r ../DeadPixelTest-macos.zip DeadPixelTest.app
+
+      - name: Package Windows/Linux binary
+        if: runner.os != 'macOS'
+        shell: bash
+        run: cp "${{ matrix.built }}" "${{ matrix.artifact }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+  release:
+    name: Publish GitHub Release
+    needs: desktop
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Add the portable single-file website
+        run: cp index.html artifacts/DeadPixelTest-web.html
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          body: |
+            ## Dead Pixel Test ${{ github.ref_name }}
+
+            En kolay yol: https://ubeytkzltsss.github.io/Dead-Pixel-Test/
+
+            | Platform | Dosya |
+            |---|---|
+            | Windows | `DeadPixelTest-windows.exe` |
+            | macOS | `DeadPixelTest-macos.zip` |
+            | Linux | `DeadPixelTest-linux` (`chmod +x` gerekir) |
+            | Web / her cihaz | `DeadPixelTest-web.html` — tek dosya, tarayıcıda aç |

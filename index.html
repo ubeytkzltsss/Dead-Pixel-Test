@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<!-- Dead Pixel Test v1 — single-file build: HTML + CSS + JS + embedded assets -->
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Dead Pixel Test — Ölü Piksel Testi</title>
+<meta name="description" content="Free dead / stuck pixel test for any screen. No install — works on Windows, macOS, Linux, Android, iOS and Smart TVs. Ücretsiz ölü piksel testi, kurulum gerektirmez.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0e14'/%3E%3Crect x='10' y='10' width='12' height='12' rx='2' fill='%23ff4d5e'/%3E%3Crect x='26' y='10' width='12' height='12' rx='2' fill='%234dff88'/%3E%3Crect x='42' y='10' width='12' height='12' rx='2' fill='%234dd2ff'/%3E%3Crect x='10' y='26' width='12' height='12' rx='2' fill='%23f7e94d'/%3E%3Crect x='26' y='26' width='12' height='12' rx='2' fill='%2305070a' stroke='%233a4a6b'/%3E%3Crect x='42' y='26' width='12' height='12' rx='2' fill='%23ff4dd2'/%3E%3Crect x='10' y='42' width='12' height='12' rx='2' fill='%237c5cff'/%3E%3Crect x='26' y='42' width='12' height='12' rx='2' fill='%23ffb84d'/%3E%3Crect x='42' y='42' width='12' height='12' rx='2' fill='%23e8edf7'/%3E%3C/svg%3E" type="image/svg+xml">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#141a26; --panel2:#1a2233; --line:#26314a;
+    --text:#e8edf7; --muted:#93a1bd; --accent:#4f8cff; --accent2:#7c5cff;
+    --danger:#ff4d5e; --ok:#2ecc71; --radius:14px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Arial,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---------- TEST CANVAS ---------- */
+  #stage{position:fixed;inset:0;display:none;background:#000}
+  #stage.on{display:block}
+  #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+  body.hidecursor #stage{cursor:none}
+
+  /* ---------- TEST UI ---------- */
+  .tui{position:fixed;left:50%;transform:translateX(-50%);z-index:20;transition:opacity .35s ease,translate .35s ease}
+  #bar{bottom:max(14px,env(safe-area-inset-bottom));display:flex;align-items:center;gap:6px;
+       background:rgba(10,13,20,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+       border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:8px 10px;max-width:96vw;overflow-x:auto;scrollbar-width:none}
+  #bar::-webkit-scrollbar{display:none}
+  .tbtn{min-width:44px;height:44px;padding:0 12px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+        font-size:15px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);white-space:nowrap;transition:background .15s}
+  .tbtn:hover{background:rgba(255,255,255,.16)}
+  .tbtn.active{background:var(--accent);border-color:var(--accent)}
+  #prog{font-variant-numeric:tabular-nums;color:#cfd8ec;font-size:13px;padding:0 6px;white-space:nowrap}
+  #tag{top:max(14px,env(safe-area-inset-top));background:rgba(10,13,20,.72);border:1px solid rgba(255,255,255,.14);
+       backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:999px;padding:9px 18px;font-size:14px;
+       display:flex;gap:10px;align-items:center;pointer-events:none;max-width:94vw}
+  #tag b{font-weight:700}
+  #tag .hex{color:#aebadd;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+  #tag .dot{width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.5);flex:none}
+  body.uihide .tui{opacity:0;pointer-events:none}
+  body.uihide #bar{translate:0 12px}
+  body.uihide #tag{translate:0 -12px}
+
+  /* pattern picker */
+  #picker{position:fixed;inset:auto 0 0 0;z-index:30;background:rgba(9,12,19,.92);backdrop-filter:blur(14px);
+          border-top:1px solid var(--line);padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+          transform:translateY(105%);transition:transform .3s ease;max-height:70vh;overflow:auto}
+  #picker.on{transform:none}
+  #picker h3{font-size:14px;color:var(--muted);margin:2px 4px 12px;text-transform:uppercase;letter-spacing:.08em}
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+  .cell{border:1px solid var(--line);border-radius:12px;overflow:hidden;text-align:left;background:var(--panel);transition:border-color .15s,transform .1s}
+  .cell:hover{border-color:var(--accent)}
+  .cell:active{transform:scale(.98)}
+  .cell.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+  .cell .sw{height:52px}
+  .cell .nm{padding:8px 10px;font-size:12.5px;line-height:1.25}
+  .cell .nm small{display:block;color:var(--muted);font-family:ui-monospace,Consolas,monospace;font-size:11px;margin-top:2px}
+
+  /* ---------- HOME ---------- */
+  #home{position:fixed;inset:0;overflow-y:auto;background:
+    radial-gradient(900px 480px at 15% -10%,rgba(79,140,255,.22),transparent 60%),
+    radial-gradient(800px 420px at 95% 0%,rgba(124,92,255,.18),transparent 60%),var(--bg)}
+  .wrap{max-width:880px;margin:0 auto;padding:26px 18px 60px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .logo{display:flex;align-items:center;gap:12px;font-weight:800;font-size:19px;letter-spacing:.01em}
+  .logo svg{width:38px;height:38px}
+  .lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+  .lang button{padding:8px 14px;font-size:13px;font-weight:700;color:var(--muted)}
+  .lang button.on{background:var(--accent);color:#fff}
+  .hero{text-align:center;padding:54px 6px 8px}
+  .hero h1{font-size:clamp(34px,7vw,58px);line-height:1.05;font-weight:900;letter-spacing:-.02em}
+  .hero h1 .grad{background:linear-gradient(90deg,#ff4d5e,#ffb84d,#f7e94d,#4dff88,#4dd2ff,#7c5cff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{color:var(--muted);font-size:clamp(15px,2.6vw,18px);max-width:620px;margin:16px auto 0;line-height:1.55}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:30px}
+  .big{padding:16px 34px;border-radius:999px;font-size:17px;font-weight:800;color:#fff;
+       background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 10px 30px rgba(79,140,255,.35);transition:transform .12s,box-shadow .12s}
+  .big:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(79,140,255,.45)}
+  .ghost{padding:16px 26px;border-radius:999px;font-size:15px;font-weight:700;border:1px solid var(--line);background:var(--panel);transition:border-color .15s}
+  .ghost:hover{border-color:var(--accent)}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-top:22px}
+  .card h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:14px}
+  .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:9px}
+  .chip{height:58px;border-radius:11px;border:1px solid rgba(255,255,255,.16);position:relative;overflow:hidden;transition:transform .1s}
+  .chip:hover{transform:translateY(-2px)}
+  .chip span{position:absolute;left:0;right:0;bottom:0;font-size:10.5px;font-weight:700;padding:3px 6px;background:rgba(0,0,0,.45);color:#fff;text-align:center}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;flex-wrap:wrap}
+  .row + .row{border-top:1px dashed var(--line)}
+  .row label{font-size:15px;font-weight:600}
+  .row small{display:block;color:var(--muted);font-weight:400;font-size:12.5px;margin-top:2px}
+  .switch{position:relative;width:54px;height:30px;flex:none}
+  .switch input{display:none}
+  .switch i{position:absolute;inset:0;border-radius:999px;background:#2a3550;transition:.2s;cursor:pointer}
+  .switch i:before{content:"";position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s}
+  .switch input:checked + i{background:var(--accent)}
+  .switch input:checked + i:before{left:27px}
+  input[type=range]{accent-color:var(--accent);width:170px}
+  .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;min-width:52px;text-align:right}
+  .info{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .info div{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+  .info b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+  .info span{color:var(--muted);font-size:12px}
+  .how li{margin:0 0 9px 18px;line-height:1.55;color:#c9d4ec;font-size:14.5px}
+  kbd{background:#232e47;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 7px;font-size:12px;font-family:ui-monospace,Consolas,monospace}
+  .keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 22px;font-size:14px;color:#c9d4ec}
+  .keys div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed rgba(38,49,74,.6)}
+  footer{text-align:center;margin-top:40px}
+  .devby{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;
+         font-size:clamp(18px,3.4vw,22px);font-weight:800;color:var(--text);letter-spacing:.01em}
+  .devby a{text-decoration:none;background:linear-gradient(90deg,#4dd2ff,#7c5cff,#ff4dd2);
+           -webkit-background-clip:text;background-clip:text;color:transparent}
+  .devby a:hover{text-decoration:underline}
+  .boykisser{width:52px;height:52px;flex:0 0 52px;object-fit:cover;object-position:center;
+             border-radius:16px;border:2px solid rgba(255,255,255,.88);background:#fff;
+             box-shadow:0 8px 22px rgba(255,77,210,.28);animation:boykisserBob 2.4s ease-in-out infinite}
+  @keyframes boykisserBob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-4px) rotate(2deg)}}
+  .warnbox{border:1px solid #5a2b33;background:#241318;color:#ffb3ba;border-radius:11px;padding:13px 15px;font-size:13.5px;line-height:1.55;margin-top:14px}
+
+  /* ---------- MODAL / FIXER ---------- */
+  .modal{position:fixed;inset:0;z-index:50;background:rgba(4,6,10,.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:18px}
+  .modal.on{display:flex}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:18px;max-width:520px;width:100%;padding:26px;max-height:88vh;overflow:auto}
+  .sheet h2{font-size:21px;margin-bottom:10px}
+  .sheet p{color:#c9d4ec;line-height:1.6;font-size:14.5px;margin-bottom:12px}
+  .sheet .cta{margin-top:18px;justify-content:flex-end}
+  #fixlayer{position:fixed;inset:0;z-index:40;background:#000;display:none}
+  #fixlayer.on{display:block}
+  #fixbox{position:absolute;width:180px;height:180px;left:calc(50% - 90px);top:calc(50% - 90px);cursor:move;touch-action:none;border:1px solid rgba(255,255,255,.25)}
+  #fixui{position:fixed;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));z-index:41;
+         background:rgba(10,13,20,.85);border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(10px);border-radius:16px;
+         padding:12px 14px;display:none;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:96vw}
+  #fixui.on{display:flex}
+  #fixui label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:5px}
+  #fixtime{font-variant-numeric:tabular-nums;font-weight:800;font-size:17px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ================= HOME ================= -->
+<main id="home">
+  <div class="wrap">
+    <header>
+      <div class="logo">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="2" width="60" height="60" rx="12" fill="#141a26" stroke="#26314a"/><g><rect x="10" y="10" width="12" height="12" rx="2" fill="#ff4d5e"/><rect x="26" y="10" width="12" height="12" rx="2" fill="#4dff88"/><rect x="42" y="10" width="12" height="12" rx="2" fill="#4dd2ff"/><rect x="10" y="26" width="12" height="12" rx="2" fill="#f7e94d"/><rect x="26" y="26" width="12" height="12" rx="2" fill="#05070a" stroke="#3a4a6b"/><rect x="42" y="26" width="12" height="12" rx="2" fill="#ff4dd2"/><rect x="10" y="42" width="12" height="12" rx="2" fill="#7c5cff"/><rect x="26" y="42" width="12" height="12" rx="2" fill="#ffb84d"/><rect x="42" y="42" width="12" height="12" rx="2" fill="#e8edf7"/></g></svg>
+        Dead Pixel Test
+      </div>
+      <nav class="lang" aria-label="Language">
+        <button id="langTr" type="button">TR</button><button id="langEn" type="button">EN</button>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <h1><span data-i="h1a">Ekranındaki</span> <span class="grad" data-i="h1b">ölü pikselleri</span> <span data-i="h1c">saniyeler içinde bul</span></h1>
+      <p data-i="sub">Kurulum yok, indirme yok. Monitör, laptop, telefon, tablet ve TV — ekranı olan her cihazda çalışır. Başla'ya bas, renkleri tek tek incele.</p>
+      <div class="cta">
+        <button class="big" id="startBtn" type="button">▶&nbsp; <span data-i="start">Teste Başla</span></button>
+        <button class="ghost" id="fixOpenBtn" type="button">🩹&nbsp; <span data-i="fixer">Takılı Piksel Onarıcı</span></button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 data-i="quick">Hızlı Başlat — Bir Renge Tıkla</h2>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <section class="card">
+      <h2 data-i="opts">Test Seçenekleri</h2>
+      <div class="row">
+        <label><span data-i="auto">Otomatik geçiş</span><small data-i="autoD">Renkler kendiliğinden sırayla değişir</small></label>
+        <label class="switch"><input type="checkbox" id="optAuto"><i></i></label>
+      </div>
+      <div class="row">
+        <label><span data-i="speed">Geçiş süresi</span><small data-i="speedD">Her desen kaç saniye kalsın?</small></label>
+        <span style="display:flex;align-items:center;gap:8px"><input type="range" id="optSpeed" min="1" max="15" step="1" value="3"><span class="val" id="speedVal">3s</span></span>
+      </div>
+      <div class="row">
+        <label><span data-i="fs">Tam ekran başlat</span><small data-i="fsD">Önerilir — görev çubuğu / adres çubuğu gizlenir</small></label>
+        <label class="switch"><input type="checkbox" id="optFs" checked><i></i></label>
+      </div>
+      <div class="row">
+        <label><span data-i="wake">Ekranı uyanık tut</span><small data-i="wakeD">Test sırasında ekranın kapanmasını engeller</small></label>
+        <label class="switch"><input type="checkbox" id="optWake" checked><i></i></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 data-i="screen">Ekran Bilgisi</h2>
+      <div class="info">
+        <div><b id="infRes">—</b><span data-i="infRes">Çözünürlük</span></div>
+        <div><b id="infView">—</b><span data-i="infView">Görünür alan</span></div>
+        <div><b id="infDpr">—</b><span data-i="infDpr">Piksel oranı (DPR)</span></div>
+        <div><b id="infDepth">—</b><span data-i="infDepth">Renk derinliği</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 data-i="how">Nasıl Test Edilir?</h2>
+      <ol class="how">
+        <li data-i="how1">Ekranı yumuşak bir bezle temizle — toz, ölü piksel sanılabilir.</li>
+        <li data-i="how2">Parlaklığı %100'e al, karanlık bir odada test et, tarayıcı yakınlaştırmasını %100 yap.</li>
+        <li data-i="how3">Teste Başla'ya bas. Her renkte ekranı yavaşça tara: siyah ekranda parlayan nokta = takılı piksel, renkli ekranda siyah kalan nokta = ölü piksel.</li>
+        <li data-i="how4">Takılı (renkli yanan) piksel bulursan Onarıcı'yı o noktanın üzerinde 10–20 dakika çalıştır — bazen düzelir. Tamamen ölü piksel donanım arızasıdır, onarılamaz.</li>
+      </ol>
+      <div class="warnbox">⚠️ <span data-i="warn">Onarıcı ve ters çevirme deseni hızla yanıp sönen ışıklar içerir. Epilepsi / ışığa duyarlılık geçmişin varsa bu modları kullanma.</span></div>
+    </section>
+
+    <section class="card">
+      <h2 data-i="keys">Klavye Kısayolları</h2>
+      <div class="keys">
+        <div><span data-i="kNext">Sonraki / Önceki</span><span><kbd>→</kbd> <kbd>←</kbd></span></div>
+        <div><span data-i="kAuto">Otomatik geçiş</span><span><kbd>Space</kbd></span></div>
+        <div><span data-i="kFs">Tam ekran</span><span><kbd>F</kbd></span></div>
+        <div><span data-i="kHide">Arayüzü gizle/göster</span><span><kbd>H</kbd></span></div>
+        <div><span data-i="kList">Desen listesi</span><span><kbd>L</kbd></span></div>
+        <div><span data-i="kQuick">Hızlı renk (ilk 9)</span><span><kbd>1</kbd>–<kbd>9</kbd></span></div>
+        <div><span data-i="kExit">Çıkış / Ana ekran</span><span><kbd>Esc</kbd> <kbd>Q</kbd></span></div>
+        <div><span data-i="kMouse">Fare: tık=ileri, sağ tık=geri</span><span><kbd>🖱️</kbd></span></div>
+      </div>
+    </section>
+
+    <footer>
+      <h3 class="devby">
+        <img class="boykisser" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwQDAwQEBAQFBQQFBwsHBwYGBw4KCggLEA4RERAOEA8SFBoWEhMYEw8QFh8XGBsbHR0dERYgIh8cIhocHRz/2wBDAQUFBQcGBw0HBw0cEhASHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBz/wgARCACcAJwDASIAAhEBAxEB/8QAHAAAAgIDAQEAAAAAAAAAAAAAAAcFBgECBAgD/8QAGAEBAAMBAAAAAAAAAAAAAAAAAAECAwT/2gAMAwEAAhADEAAAAX+AYWVrqoy9lK2gAAAAAAAFsTcfvADaMZANRUtdVtUqsVf1kM0hZg2FF3DPI+QDGaKRVo+FuCr2jBUrcrGmFbsi4Ja48XaGMgm3ByLI+7OSTzFl9mRWiwqiqvIkwAxkFa0lc0QV7QWAzs67AAcCD9EVkjpbk7ywAHy+oAAAArmirWkC9YUUbyS9YJkhfmTxXfkWc5+gAqRbShaDAF5Yiw67Ugg2nXbEGPgkCabiPuRRmDDM88R1201Y9n3CtWUx5A9geRBd+j/OHp4y2FyyjgWdqq43Mp9wAp2xgh5lHsSukEyFvbq7pha+yzTk+IL0ZCbcgeNPVVhr8XrrBUrBz6utU2Ka14rPuAc/RAFOZCm74WO2qi9xrPRcnm2SyjWl2is+zMyGm1YO6ZUnTFmkoO3aas7fm6QAAA1SDx5hW/eMbh8ZEAAKPWm6pBtZ5eoAAAAAAAxmNFe0vIDmHSAAAc3SCraina5kAAD/xAAqEAABBAIBAgUEAwEAAAAAAAAFAgMEBgABEBUgERMUITAHEhY1IyQ2Jf/aAAgBAQABBQLmXcGYhzW/HXxmrDGDIrZx4p2nCaRAwJXmtgQc58LO+IxYnNSQtbbHLP66Mc7Df/YseHgrZqFWjLk1HwGzEiTLChI4SNligdSDVid1AHxv21UNetkcWYa824KJsloW/bTF1dkIReIOlRJ0ec3xZTCx0evhEBofG8pn9fk/J3EDVaN6QBzITuoF0q0tNN36ZTjSHkTaihtwTY17krXpCK63s0U7Av8AFa+Ly59ldht+VE5mRGp0YHMdBTppOOzbuDIWMajECZVmIPhoHwuwf7Xfi9/qNe2uZktuDF3Kat8iDLACmWT4yQ9xtCVb7R3vduL3+m1vx1ypOl6crYl3equH1jAMdGc+AF/LZ+Lqz51dHu+fA+be/t1SfF6PwSi+ugUyX6gHmy4/WdbG6zrwvWbsQnWMPtyWuJlmFwJH5mEz81CZ+bhMFmoZlOWsl04OCgdME86V+OWjLEAHJlpqIVOjzTTBjKt/nuLp/pM+nrDL4uyxWRxNtltnJ8+ONjDGX7GT4f0tTIg9Y5CC5CcUg1KbNlDpPvecsjflnsrzflA+Lun7bJn05b2kPfP0aN+KClYiGXpdOCwY9HhOpRwZiyAhMaTjFY2WCM80Wy71mQ/LE1qeTlNoSy3p5tW8udXeKqZqhh50GLSHG22HJIxtZMmMwI7LEm5SEp0hPL0TSLiSM6iODzyk4OIaItcPNJfa1Rg6d8lCehyGbBMZWMbloj20IstDAF2jEDl91LDNKY25D8pP3xa5CjPeHBGZ6CGu9CvIbTaCGdVskfB8YyRJ5tOt4kXGRM4LI/GjSVaVrg1EenC4SbOLi7k2t7OvFwuxxmCVTwmIwlzsIWEaNzZgwfzYI8znRbC7iKTGdUwwiMz27145dA0WM0yOPMN9Ss8bIL7smJzaBUgqOqEQRIjfG+w3JZ1uVS340lmYz22COsJPjvoks/GRkv2ifChsj43a+yiQzVHVwH/inp++FHJTR+UefLlSO4r/AF7n2//EACIRAAIBAwMFAQAAAAAAAAAAAAIDAQQRIAASQSExMkBQ0f/aAAgBAwEBPwH7qkm4tgRqoonIvujpHPGC1kwoAO+qmhZTRdkx+4tex03YV8TMj8pv6/8A/8QAHREAAgEEAwAAAAAAAAAAAAAAAQIxAAMRICFAUP/aAAgBAgEBPwH3WYLyaW4rRoSAMmkuh41VQsagAR1//8QARxAAAQMBAwYJBwgJBQAAAAAAAQIDBAAFERIQEyExQVEUICIjMkJSYXEVMDRigaHwJDM1Q0Rjk7EGU1RzkaLB0fFygpKy4f/aAAgBAQAGPwLLwJaPkqOQ4/2Vmrxq84Au9ySvoMI6SqlMTGgzNYVpb9U6uK/KPSSOQN6tlKZmoxuzedev13nVXkO0FXj7K8eund5vyZZKM/aKtZ6rXjRlSV8JtFzSp5ezwqDbCfmnDweR4bD8buLAsv6iP8oe/oPjfkLROB5HKac7KqchTORaUXkuJPW9bzPkeyTfLV869sZH96zTIvcVpcdOtZyS2LuVgxJ8RpqG8TevDgV4jRxLUtVWuQ9gR/pGVu2bP9Ni9JI+sRupqUyeSvWOyd2QuN2NLW2Ddib5X9KCZTEuKT+tb0VnIzyHUb0nK2xFGO0JRwMp3d9Yb8clzlPOdpXEtWD+zSTd4H/GWc8NaWjdUFF1xKMZ9unicKQD5ImK51I+qXvoKSQUnTfVqWcrpx5BN3qn/FFDiErSdihfXCrIeMGWOz0FeIrydarXBrQGrsu+FFSjckaSak268ORfmowOxO/47+LbzfawLyyAOupKffTDfYQB7uI5HfTiacFxFGw5y729cV49ZO6o0izl8IW6M1JQ0L9G/wCN2XNPi5Y0ocHSQaXYElClzXiG2pA1OIpiM30Gk4eLaw3sIP5ZWR2pCOK7IeNzbScRpLlozo0OA0rkMYxnD7azcaTDbT3OC8+2kMtTWVur0BKVa8oJAJTqO7jWudzKB+WVtXZkINA8QhQBB2Gr1WfHv7kXV9HsfwpLjMJhC06QpKNI8zb7uwFCMsq7WjCv31Fd7baVe7z951CrQnH7VJUoeGWTHP1rZTTTavnIxLKh4ZNM6N+KK9PjfiivpCL+IK+kY34gpLrSwttWkKGo5Vx5EoIeRrThNemj/gr+1emfyKr0s/hqpww3MYb6XJuyPYfn3uabHeaixeshPK8dvEXi5MC1NIOxLnx+eSz7PhxktyJbl6l6SUpGugOANnxJqa0ygIaQ6UpSNmSz/wB1lm/7f+oySM4y2sh7WpIOwVZFoIZQEZ3MuDCLiD8Gjm0JRf2RdS5ElwIbTv20i15iM3CY9FZVt9bK4GzhcKThO408BHYlqjqwOJJwLBpcWZ+j0obUrbN+FW/VWbnsOtvMcnE4m7GKhYurFUU+/JaAP65RyWen7lP5ZZXeEn+XI+rtPn8hWLal5BFA7xWclOyFXdFIXclPspx996ShpsXk52pU3nURXzcy24q84d+Xy3BbLjSxdKZG0dqg/FcC0bd6e45LItGO0twtuZpwIF5wn4OTyhDaLoWOdSjWDvpDfB3W2r+W4tNwSKShOhKBcKuC0k+OREyGAp9KcKm+0KDfAHU969A/jTMQG8pF6lbztqJFYaK0rfTnFDqpyLfkOBDSNZNIkSUqZsZs3ts7Xu80EpFyRoAHEbasclhYGOXh6F267410IzDRflq1NjZ41MVaLraA2rCEp37fGlOJacQkG4Yx0u/K40voLBSaBS26lQ2h08RHNrddc0IQkazUpuQkLk4glplI1GvljgW8TfoGrupDjOmRGONLZ6K+66kuoSEOI5DjXYPEcdV0UJKjUi0nRz050rv7qzmEY7rsW2i7gLqyb+c03ZXZGaW7mxfgbGk0FtqdceOpkI5V9Gch1qGD0Ijg1jvq52xmnvWacpqdaHyNhkciM2vpeOVUsN8+rrZW7WaF0KUc3KQNh7VAg3g5ZUaOUh11GEFWqmozcKE600MIuX/7VyYUJj1lLv8A61da8HOx/wBpjah4ir4shDnq9YezLnUsthztBIv4p4RLbCuwnlK/hWCyoxiRj9qf1+wVzFvqV+9bvq563QlP3bVY58uVNV94u4UhloXNoGFI3DjsT2GcwQ8A84zoOE7aC4FsNS46hejhCdY8a52yWH+9py6mnXmCw6oXls9XiKTFfcbeRpCUquC+41nG4aUzWjheS7ylJV7fOLZdQFtrFyknbWFWORYazoOtTFIeYcS42rUpPGRbsRJwdGW2OsnfTbzSsTbgxJPd5xdlQl4IDR+UvjreqKbjx0BDSBoHGW04nE2sYVDeKnWI8olUVWJona2fj3+bfSFqReg8pOsUY0aW601ffck1aDciS68lvDhzhvu18ex3EaFPNqQvvHG//8QAKBABAAEDAgUEAwEBAAAAAAAAAREAITFBURBhcaHwIIGRsTDB0eHx/9oACAEBAAE/IeK7BATGMOkb/wCUBIKuJ+TBwl6mnQ50lal5EfoY+PTEbZ7hYfP1Turkx3rtE+5ohr7G0Ov/AJt+OKm0zHusT9dqa7rGk6betQ9i2N2TzRQyeiRVyj3jJQxUyBQc/wAt6EmTrhMD9/7+E8YVrqb+DrU1HeDHly4BcTXwz6pISPIuXFCKwGaW53Jtj/XxxFZA7zW9u3tVhlXW+ouZSkdqXnxtCSmvrT9K/ag/Oxx12428xXKc+37qXZGbd62xxEkOKLIxD7cRgYnqSD7o7EPqf7cUmsUTAttOX+mhQ8FgGRN6lvB/dgfGtZ8RED7NMcbh+3ofXKo/rRvzPd82oNhVGAMtZhZp1nxv6R2Yxe3+8VzLtd/Vf8IcHoHTMfzNchsabnzltS3Zm5ugkWUtQ4K/slwfysvceW3eunuzzGOAjnu+7f0+YCONTtV90IDb0NtUUJYKcIK0c9WJ8NaJHxd9wylpC+XQrjfPkhfo9XmEjjMaNjvXOwn0BUaEJEplKNQ+lYf3p0mn4QJ1/C3T2vQf5xZeSHsf7UYM98H5zVICVo5Q6Qf9eI6KPqlu9NZ7SyKt2TgigU0f605Hm86czyudZCkA98rIcYOeTLEkmDZpKoeH+VIeB2pJrQkoTjPThcezFy2bdCaljH92/c+gCXDwvK+CslMJ2NyEJfIqwQEShe9YDaogYozRjovt429apNTvDBJHOolHh+cZQoDZQy+KED2clsGryp2M7XveeabUcIQoOSWfmojtaDbljtpTOl0HsCkrFE5bWb6mGrdh1RMq0pM2+As/vgiWR/mXF0ulfDghcRPaqw/ZKWtygaIY19lEKkKReB8VMgstiLf5vxa6lnlo8+2l2jDU2NHgwT3Mx9ChiopYgpJYhqJ9VZhGU1jOXlQvQpbARXKTgXhfqm0JYR3JoAKWIo/dQOo5a91SE7sQtX57UAIMFH0yfpG7yqQv8Wf6PDej0FgIA24uKlk599OzKfSgMXOhbqop5G80Ck+1rFDZxFhRkYskNIvEbg0cIqGmf3opxZykcltC1A51O0F7opKXMburBbW+Na2rSCPSNtvQrMdMAmrkiyzFgPmaZ/JxhtNMtFKoSdCiBHBD9eJUC0BX6W1Ka9EG7bZ8tTHYcmPdq4QxIKc9P84IChJjlR/9ZPcKODJQOATEO/zvQNASJhOLMUMJdnHKaJ6NYFDeyh/iA91MCpt0PDapDyJZR1FfinT8lP34RxHAHU7CphdQnceW/tUJzkO7vQvcqKf1RnLt34c96gk3JWDBf1AESRqNQkINgWmdaD+ApNjV91EtRzTu1MCE8q2n0XQhc8davl79DbBoAIPxsqMTYNR4ttu39ffXIEDlkj6l/JGLb7/uOdBwBDqsfkc3Ha94f8LwxRD9u76h1Jp1M0xIfiTI/jK2B5YsZKHm7giXfFaj/hyZeuxJyLE+r//aAAwDAQACAAMAAAAQAsoAAAAEAIEQEEMAQQAAUAQY8UUAQoQAAocAgAAoUMIEAAAEAocYUUggw0EoALYsg8NW4AErRIoYIF0oAA0QAA0IAAAAUsAAQkAA/8QAHxEBAQACAgEFAAAAAAAAAAAAAREhMQBBIEBQUXGR/9oACAEDAQE/EPfSNT+AdquAO15VWgR2QSPe+vA+Ktc3gJI3IGnyFi6uC+AprhdzMZbjxWFoAK2Bo+j0/wD/xAAdEQEAAQQDAQAAAAAAAAAAAAABEQAgIUExQFDR/9oACAECAQE/EPdAojZZdbs1opqC/LEHmhoMW4AR1//EACcQAQACAgEDBAMAAwEAAAAAAAERIQAxQVFhcRAggZEwocGx0fDh/9oACAEBAAE/EPRYJcUVMeVog0gnKZdLD0qISI6R/I23Kp1SCZ2pF8C1lwHcKwoVZsnm1T7VGUieOubS9lk5Zu3AcGjPC6sUlDZkq1dDQcI9wv8ACsZd3g45B1hOmuUsJ0vMstgHTjknQrGXzodI/SDICREeTn2Brqtpf6QjIgGGetMDaZLlAA7JYYzvRIlHUDUipR0PwLBkxAyOnlwgku5AWIEQEBnnpxJY0O6q5HZVCzW+WHzl2JWbWUvdg/PqY4Up0HODXN34Q7WfXLxIaimIbEu7LkxNWggJePyfZDpxwiULGdUK2ZiSEklTzjlUidD5Tg+H7N4gWuyD66QoyoQp0kBNSJocoS5NUtBXMsdZVtfUWAVSPJkn4LXqg+Nvn1c2EyYidfZysp1yuufgHx6gIcRwzn6pgjSt8YBXQikyQJsRnL5NOmifUbfDrhwSjzbAjgGplX7JB7DgTgehBcTYIGCUeGaLnOWBlTsAuPpSfTfBOrMT1w16unI5YJ9zNfv1pR9ulGRKIAz/AINexCr+UHSPAQR4QckRgtyyszQkMHCOjiWUl2gCUBJjUbvJRe/R4kwEOGvJMSqezCTN20YGjtgCdxQScAkSobhb3kXd9jggtLef/X16Bp+L4IGgHs7OZhwByrAHVx6iZSinhIL1VYFaYPWOWS+XIkEfxkwR49X+wi1EhU2SVXtdYnck/wCf9HqDWxuhX+4QGiHyexypjCGxGkx6tJUD+uOSjzf5Od7qUsCEjf4HTkTp6LEieszJgTZdfpYBAJY5lf385TEEcAS5Kqpjzp/ZfHqexDR4SL4g4GU97agnifDiwS46NEQ0Thxqjg1wzKRI7N/c8mubyHk9NY4kQ6xLFLB3znJvjInwfGVnd4wuF7puV0k7a6ek0V2lOUjba8x1yGoJM5d/cHx6tmTBjIo7YuiR8DhYwxw1lz2Y8QECZXWTMwqaDb14BC2nQhKvE/OaMQD1fQdOS27w5dXFsvlBPEhYmfvCjBDJyGCFBt46Y4MJICNLAnLMSm7DeXgXiOICImftAzykKkogj0oZkgyIs6QceGihkUKCiCWVhvbJrA17Q0k2KZHCVdWqwoEnNO1yti+DmMO8LmpYU0I3wv6GG8AqEx3D+vR1haQd6CP8fQV08hAv7nAF7s6QP647dIPKDkd7QcEXFEXlZXrrHKC1e0ButAG1DHTuBoIsEuhAmOEPqMQNPwT1AFeElqCPwJpiy7IfTsUzWJ6Oqgtg6lmrMtDEMGys4JsAGJRlzh6bCTpYSUTAlWMKg5DRwPgDHp3twfA4IkmC+QosleQuCMSRDJCNJiDZ2pEeJxTLgEFwJ4lg7BkD/OJFmyYmVdWAwCgDpku5g/QbTQLckws1JkGP30EklcGXiECIAGgCI9QKk4wdi0hDEkLQrUoAi5a488JriH/SY8AumUECKwgJx0XZDhE7HHxkZBk1QaBcA8Ut4BrDOgzcqcdMEGKO4yHQwFeKRiOQUfvthVGIxNkbIWlWeelDNwWQKfZ8XE4s+6yYhXsFj30xGIURIcJ4VnsrY+yZcT6OX6MW02thonpb4jFgkaWU56kTcYQ6hiUdETe2XCIABQGj0QT9eKEB0JleAXAMVBq6skLqRe04FGA3sMilath7GDIp8RDd1hQ/WKv1Gq5ijpu6AFqEGKoLKS1qumBVCzKCkKKFCFLyABzjHLlOy4boerfkYkWI/KCRHkT1Cz4tCCSFJg1zjhss84TIu1g3lyfUryQf4MZ0BhmuU1Hf74JrU/pEPMR3wRyJxXJz5UCS/eRGIdmRGSTHOCgN550tT5jFKUTephSY6fPAqpp7gIVcZPjqho9kIuBBrI+gFBjVx4IIkSsFW+4IQIRKTo4NpRSbCKAhoKoO8l9zhqSiKZOYYhG1jruhb9Zv/fbySgTQOufZNWUisWAkrFmh3S5ZfgEikWkCkBCI2YKAAIA4Pxy0MoBQj/1byWVKRYaTmb42IkYgCfqP+JpGxpwIo9iTi+QcwkFehgXofdpsFwUV9P41gnD0ShmB36SRO6K4Oak7eqm0ZVbV9xDhxoKD6c3U3JTJHYewkcfjPRxJLdqIPRhyeHsxWBSSWi+2T0RicAQpJMFa7e9js5xRoj3J32OmGj2//9k=" alt="Boykisser" title=":3" width="52" height="52">
+        <span>developed by <a href="https://github.com/ubeytkzltsss" target="_blank" rel="noopener">github.com/ubeytkzltsss</a></span>
+      </h3>
+    </footer>
+  </div>
+</main>
+
+<!-- ================= TEST STAGE ================= -->
+<div id="stage" aria-hidden="true">
+  <canvas id="cv"></canvas>
+</div>
+<div class="tui" id="tag" style="display:none"><span class="dot" id="tagDot"></span><b id="tagName">—</b><span class="hex" id="tagHex"></span></div>
+<nav class="tui" id="bar" style="display:none" aria-label="Test controls">
+  <button class="tbtn" id="btnHome" type="button" title="Home (Esc)">⌂</button>
+  <button class="tbtn" id="btnPrev" type="button" title="Previous (←)">❮</button>
+  <button class="tbtn" id="btnPlay" type="button" title="Auto (Space)">▶</button>
+  <button class="tbtn" id="btnNext" type="button" title="Next (→)">❯</button>
+  <span id="prog">1/22</span>
+  <button class="tbtn" id="btnList" type="button" title="Patterns (L)">▦ <span data-i="patterns">Desenler</span></button>
+  <button class="tbtn" id="btnFix" type="button" title="Fixer">🩹</button>
+  <button class="tbtn" id="btnFs" type="button" title="Fullscreen (F)">⛶</button>
+</nav>
+<aside id="picker" aria-hidden="true">
+  <h3 data-i="pickT">Desen Seç</h3>
+  <div id="grid"></div>
+</aside>
+
+<!-- ================= FIXER ================= -->
+<div class="modal" id="fixWarn" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <h2>🩹 <span data-i="fixT">Takılı Piksel Onarıcı</span></h2>
+    <p data-i="fixD">Bu mod, seçtiğin alanda renkleri çok hızlı değiştirerek takılı kalmış alt pikseli uyarmaya çalışır. Kutuyu sorunlu noktanın üzerine sürükle ve 10–20 dakika beklet. Garanti vermez; ölü (tamamen siyah) pikseli düzeltmez.</p>
+    <div class="warnbox">⚠️ <span data-i="warn2">Hızla yanıp sönen ışık içerir! Epilepsi veya ışığa duyarlılık öykün varsa devam etme, ekrana doğrudan bakma.</span></div>
+    <div class="cta">
+      <button class="ghost" id="fixCancel" type="button" data-i="cancel">Vazgeç</button>
+      <button class="big" id="fixGo" type="button" data-i="fixGo">Anladım, Başlat</button>
+    </div>
+  </div>
+</div>
+<div id="fixlayer"><div id="fixbox" title="Drag me"></div></div>
+<div id="fixui">
+  <span id="fixtime">00:00</span>
+  <label><span data-i="fixSize">Kutu boyutu</span><input type="range" id="fixSize" min="30" max="600" value="180"></label>
+  <label><span data-i="fixSpeed">Hız (FPS)</span><input type="range" id="fixSpeed" min="5" max="60" value="30"></label>
+  <button class="tbtn" id="fixFull" type="button" data-i="fixFull">Tam Ekran</button>
+  <button class="tbtn" id="fixStop" type="button" style="background:var(--danger);border-color:var(--danger)" data-i="stop">Durdur (Esc)</button>
+</div>
+
+<script>
+"use strict";
+/* ============================== I18N ============================== */
+const STR = {
+  tr:{h1a:"Ekranındaki",h1b:"ölü pikselleri",h1c:"saniyeler içinde bul",
+      sub:"Kurulum yok, indirme yok. Monitör, laptop, telefon, tablet ve TV — ekranı olan her cihazda çalışır. Başla'ya bas, renkleri tek tek incele.",
+      start:"Teste Başla",fixer:"Takılı Piksel Onarıcı",
+      quick:"Hızlı Başlat — Bir Renge Tıkla",opts:"Test Seçenekleri",
+      auto:"Otomatik geçiş",autoD:"Renkler kendiliğinden sırayla değişir",
+      speed:"Geçiş süresi",speedD:"Her desen kaç saniye kalsın?",
+      fs:"Tam ekran başlat",fsD:"Önerilir — görev çubuğu / adres çubuğu gizlenir",
+      wake:"Ekranı uyanık tut",wakeD:"Test sırasında ekranın kapanmasını engeller",
+      screen:"Ekran Bilgisi",infRes:"Çözünürlük",infView:"Görünür alan",infDpr:"Piksel oranı (DPR)",infDepth:"Renk derinliği",
+      how:"Nasıl Test Edilir?",
+      how1:"Ekranı yumuşak bir bezle temizle — toz, ölü piksel sanılabilir.",
+      how2:"Parlaklığı %100'e al, karanlık bir odada test et, tarayıcı yakınlaştırmasını %100 yap.",
+      how3:"Teste Başla'ya bas. Her renkte ekranı yavaşça tara: siyah ekranda parlayan nokta = takılı piksel, renkli ekranda siyah kalan nokta = ölü piksel.",
+      how4:"Takılı (renkli yanan) piksel bulursan Onarıcı'yı o noktanın üzerinde 10–20 dakika çalıştır — bazen düzelir. Tamamen ölü piksel donanım arızasıdır, onarılamaz.",
+      warn:"Onarıcı ve ters çevirme deseni hızla yanıp sönen ışıklar içerir. Epilepsi / ışığa duyarlılık geçmişin varsa bu modları kullanma.",
+      keys:"Klavye Kısayolları",kNext:"Sonraki / Önceki",kAuto:"Otomatik geçiş",kFs:"Tam ekran",kHide:"Arayüzü gizle/göster",
+      kList:"Desen listesi",kQuick:"Hızlı renk (ilk 9)",kExit:"Çıkış / Ana ekran",kMouse:"Fare: tık=ileri, sağ tık=geri",
+      patterns:"Desenler",pickT:"Desen Seç",
+      fixT:"Takılı Piksel Onarıcı",
+      fixD:"Bu mod, seçtiğin alanda renkleri çok hızlı değiştirerek takılı kalmış alt pikseli uyarmaya çalışır. Kutuyu sorunlu noktanın üzerine sürükle ve 10–20 dakika beklet. Garanti vermez; ölü (tamamen siyah) pikseli düzeltmez.",
+      warn2:"Hızla yanıp sönen ışık içerir! Epilepsi veya ışığa duyarlılık öykün varsa devam etme, ekrana doğrudan bakma.",
+      cancel:"Vazgeç",fixGo:"Anladım, Başlat",fixSize:"Kutu boyutu",fixSpeed:"Hız (FPS)",fixFull:"Tam Ekran",stop:"Durdur (Esc)"},
+  en:{h1a:"Find",h1b:"dead pixels",h1c:"on your screen in seconds",
+      sub:"No install, no download. Works on monitors, laptops, phones, tablets and TVs — anything with a screen. Hit Start and inspect every color.",
+      start:"Start Test",fixer:"Stuck Pixel Fixer",
+      quick:"Quick Start — Click a Color",opts:"Test Options",
+      auto:"Auto-cycle",autoD:"Colors advance automatically",
+      speed:"Cycle interval",speedD:"How many seconds per pattern?",
+      fs:"Start in fullscreen",fsD:"Recommended — hides taskbar / address bar",
+      wake:"Keep screen awake",wakeD:"Prevents the display from sleeping during the test",
+      screen:"Screen Info",infRes:"Resolution",infView:"Viewport",infDpr:"Pixel ratio (DPR)",infDepth:"Color depth",
+      how:"How to Test",
+      how1:"Clean the screen with a soft cloth — dust can look like a dead pixel.",
+      how2:"Set brightness to 100%, test in a dark room, browser zoom at 100%.",
+      how3:"Press Start Test. Scan slowly on every color: a glowing dot on black = stuck pixel, a black dot on color = dead pixel.",
+      how4:"If you find a stuck (colored) pixel, run the Fixer over it for 10–20 minutes — it sometimes revives. A fully dead pixel is a hardware fault and cannot be fixed.",
+      warn:"The Fixer and the inversion pattern contain rapidly flashing lights. Do not use them if you have epilepsy / photosensitivity.",
+      keys:"Keyboard Shortcuts",kNext:"Next / Previous",kAuto:"Auto-cycle",kFs:"Fullscreen",kHide:"Hide/show UI",
+      kList:"Pattern list",kQuick:"Quick colors (first 9)",kExit:"Exit / Home",kMouse:"Mouse: click=next, right-click=back",
+      patterns:"Patterns",pickT:"Pick a Pattern",
+      fixT:"Stuck Pixel Fixer",
+      fixD:"This mode flashes colors rapidly in a selected area to try to un-stick a sub-pixel. Drag the box over the bad spot and leave it for 10–20 minutes. No guarantee; it cannot fix a fully dead (black) pixel.",
+      warn2:"Contains rapidly flashing light! Do not continue if you have epilepsy or photosensitivity, and don't stare at the screen.",
+      cancel:"Cancel",fixGo:"I Understand, Start",fixSize:"Box size",fixSpeed:"Speed (FPS)",fixFull:"Fullscreen",stop:"Stop (Esc)"}
+};
+let lang = localStorage.getItem("dpt-lang") || ((navigator.language||"en").toLowerCase().startsWith("tr") ? "tr" : "en");
+const t = k => STR[lang][k] || k;
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i]").forEach(el => { el.textContent = t(el.dataset.i); });
+  document.getElementById("langTr").classList.toggle("on", lang==="tr");
+  document.getElementById("langEn").classList.toggle("on", lang==="en");
+  buildChips(); buildGrid(); updateTag();
+  localStorage.setItem("dpt-lang", lang);
+}
+document.getElementById("langTr").onclick = () => { lang="tr"; applyLang(); };
+document.getElementById("langEn").onclick = () => { lang="en"; applyLang(); };
+
+/* ============================== PATTERNS ============================== */
+/* type: solid | gh | gv | grgb | checker | checker1 | gridd | gridl | bars | moving | inversion */
+const P = [
+  {id:"black",    tr:"Siyah",            en:"Black",           type:"solid", c:"#000000"},
+  {id:"white",    tr:"Beyaz",            en:"White",           type:"solid", c:"#FFFFFF"},
+  {id:"red",      tr:"Kırmızı",          en:"Red",             type:"solid", c:"#FF0000"},
+  {id:"green",    tr:"Yeşil",            en:"Green",           type:"solid", c:"#00FF00"},
+  {id:"blue",     tr:"Mavi",             en:"Blue",            type:"solid", c:"#0000FF"},
+  {id:"yellow",   tr:"Sarı",             en:"Yellow",          type:"solid", c:"#FFFF00"},
+  {id:"cyan",     tr:"Camgöbeği",        en:"Cyan",            type:"solid", c:"#00FFFF"},
+  {id:"magenta",  tr:"Macenta",          en:"Magenta",         type:"solid", c:"#FF00FF"},
+  {id:"gray50",   tr:"Gri %50",          en:"Gray 50%",        type:"solid", c:"#808080"},
+  {id:"gray25",   tr:"Gri %25 (bulutlanma)", en:"Gray 25% (uniformity)", type:"solid", c:"#404040"},
+  {id:"gray75",   tr:"Gri %75",          en:"Gray 75%",        type:"solid", c:"#BFBFBF"},
+  {id:"orange",   tr:"Turuncu",          en:"Orange",          type:"solid", c:"#FF8000"},
+  {id:"gh",       tr:"Yatay Gradyan",    en:"Gradient →",      type:"gh",    c:"linear-gradient(90deg,#000,#fff)"},
+  {id:"gv",       tr:"Dikey Gradyan",    en:"Gradient ↓",      type:"gv",    c:"linear-gradient(#000,#fff)"},
+  {id:"grgb",     tr:"RGB Gradyan",      en:"RGB Gradient",    type:"grgb",  c:"linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f)"},
+  {id:"bars",     tr:"Renk Çubukları",   en:"Color Bars",      type:"bars",  c:"linear-gradient(90deg,#fff 0 14.2%,#ff0 0 28.4%,#0ff 0 42.6%,#0f0 0 56.8%,#f0f 0 71%,#f00 0 85.2%,#00f 0)"},
+  {id:"checker",  tr:"Dama Tahtası",     en:"Checkerboard",    type:"checker",  c:"repeating-conic-gradient(#000 0% 25%,#fff 0% 50%) 0 0/24px 24px"},
+  {id:"checker1", tr:"Dama 1px (inversiyon)", en:"Checker 1px (inversion)", type:"checker1", c:"repeating-conic-gradient(#000 0% 25%,#fff 0% 50%) 0 0/4px 4px"},
+  {id:"gridd",    tr:"Izgara (Koyu)",    en:"Grid (Dark)",     type:"gridd", c:"linear-gradient(#fff 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#fff 1px,#000 1px) 0 0/24px 24px"},
+  {id:"gridl",    tr:"Izgara (Açık)",    en:"Grid (Light)",    type:"gridl", c:"linear-gradient(#000 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,#000 1px,#fff 1px) 0 0/24px 24px"},
+  {id:"moving",   tr:"Hareketli Çubuk (gölgelenme)", en:"Moving Bar (ghosting)", type:"moving", c:"#000000"},
+  {id:"inversion",tr:"Ters Çevirme ⚠",   en:"Inversion ⚠",    type:"inversion", c:"repeating-conic-gradient(#000 0% 25%,#fff 0% 50%) 0 0/8px 8px"}
+];
+const nameOf = p => lang==="tr" ? p.tr : p.en;
+const hexOf  = p => p.type==="solid" ? p.c : "";
+
+/* ============================== STATE ============================== */
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+let idx = 0, testing = false, playing = false, playTimer = null, raf = null, wakeLock = null;
+let uiTimer = null, animT0 = 0;
+
+const optAuto=$("optAuto"), optSpeed=$("optSpeed"), optFs=$("optFs"), optWake=$("optWake");
+function loadOpts(){
+  try{ const o = JSON.parse(localStorage.getItem("dpt-opts")||"{}");
+    if("a" in o) optAuto.checked=o.a; if("s" in o) optSpeed.value=o.s;
+    if("f" in o) optFs.checked=o.f;   if("w" in o) optWake.checked=o.w;
+  }catch(e){}
+  $("speedVal").textContent = optSpeed.value + "s";
+}
+function saveOpts(){
+  localStorage.setItem("dpt-opts", JSON.stringify({a:optAuto.checked, s:+optSpeed.value, f:optFs.checked, w:optWake.checked}));
+  $("speedVal").textContent = optSpeed.value + "s";
+  if(playing) restartPlay();
+}
+[optAuto,optSpeed,optFs,optWake].forEach(el => el.addEventListener("input", saveOpts));
+
+/* ============================== DRAWING ============================== */
+function resize(){
+  const dpr = window.devicePixelRatio || 1;
+  cv.width  = Math.round(innerWidth  * dpr);
+  cv.height = Math.round(innerHeight * dpr);
+  if(testing) draw(performance.now());
+  screenInfo();
+}
+addEventListener("resize", resize);
+
+function draw(now){
+  const p = P[idx], W = cv.width, H = cv.height;
+  cancelAnimationFrame(raf); raf = null;
+  switch(p.type){
+    case "solid": ctx.fillStyle = p.c; ctx.fillRect(0,0,W,H); break;
+    case "gh": { const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"#000"); g.addColorStop(1,"#fff"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); break; }
+    case "gv": { const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#000"); g.addColorStop(1,"#fff"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); break; }
+    case "grgb": { const g=ctx.createLinearGradient(0,0,W,0);
+      ["#f00","#ff0","#0f0","#0ff","#00f","#f0f","#f00"].forEach((c,i,a)=>g.addColorStop(i/(a.length-1),c));
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H); break; }
+    case "bars": { const cols=["#fff","#ff0","#0ff","#0f0","#f0f","#f00","#00f"], w=W/cols.length;
+      cols.forEach((c,i)=>{ ctx.fillStyle=c; ctx.fillRect(Math.floor(i*w),0,Math.ceil(w),H*0.75); });
+      ctx.fillStyle="#000"; ctx.fillRect(0,H*0.75,W,H*0.25);
+      const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,"#000"); g.addColorStop(1,"#fff");
+      ctx.fillStyle=g; ctx.fillRect(0,H*0.75,W,H*0.25); break; }
+    case "checker": checker(Math.max(8,Math.round(W/80)), false); break;
+    case "checker1": checker(1, false); break;
+    case "gridd": grid("#000","#fff"); break;
+    case "gridl": grid("#fff","#000"); break;
+    case "moving": animT0 = now; raf = requestAnimationFrame(drawMoving); break;
+    case "inversion": animT0 = now; raf = requestAnimationFrame(drawInversion); break;
+  }
+}
+function checker(s, invert){
+  const W=cv.width, H=cv.height;
+  ctx.fillStyle = invert ? "#fff" : "#000"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = invert ? "#000" : "#fff";
+  for(let y=0; y<H; y+=s) for(let x=(((y/s)|0)%2)*s; x<W; x+=2*s) ctx.fillRect(x,y,s,s);
+}
+function grid(bg, fg){
+  const W=cv.width, H=cv.height, s=Math.max(16,Math.round(W/60));
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.fillStyle=fg;
+  for(let x=0;x<W;x+=s) ctx.fillRect(x,0,1,H);
+  for(let y=0;y<H;y+=s) ctx.fillRect(0,y,W,1);
+  ctx.fillRect(W/2-1,0,2,H); ctx.fillRect(0,H/2-1,W,2); /* center cross */
+}
+function drawMoving(now){
+  if(!testing) return;
+  const W=cv.width, H=cv.height, bw=Math.max(40,W*0.06), speed=W/3500; /* px per ms */
+  const x = ((now-animT0)*speed) % (W+bw) - bw;
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#fff"; ctx.fillRect(x,0,bw,H);
+  raf = requestAnimationFrame(drawMoving);
+}
+function drawInversion(now){
+  if(!testing) return;
+  checker(2, Math.floor((now-animT0)/500) % 2 === 1);
+  raf = requestAnimationFrame(drawInversion);
+}
+
+/* ============================== TEST FLOW ============================== */
+function setHash(url){ try{ history.replaceState(null,"",url); }catch(e){} } /* file:// safe */
+function updateTag(){
+  const p = P[idx];
+  $("tagName").textContent = nameOf(p);
+  $("tagHex").textContent = hexOf(p);
+  $("tagDot").style.background = p.type==="solid" ? p.c : p.c;
+  $("prog").textContent = (idx+1) + "/" + P.length;
+  $("btnPlay").textContent = playing ? "⏸" : "▶";
+  $("btnPlay").classList.toggle("active", playing);
+  document.querySelectorAll(".cell").forEach((c,i)=>c.classList.toggle("sel", i===idx));
+  if(testing) setHash("#"+p.id);
+}
+function go(i){
+  idx = (i + P.length) % P.length;
+  draw(performance.now()); updateTag(); pokeUI();
+}
+const next = () => go(idx+1), prev = () => go(idx-1);
+
+function restartPlay(){
+  clearInterval(playTimer);
+  if(playing) playTimer = setInterval(next, (+optSpeed.value)*1000);
+}
+function setPlaying(v){ playing=v; restartPlay(); updateTag(); }
+
+async function setWake(on){
+  try{
+    if(on && "wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen");
+    else if(wakeLock){ await wakeLock.release(); wakeLock=null; }
+  }catch(e){}
+}
+document.addEventListener("visibilitychange", ()=>{ if(testing && optWake.checked && document.visibilityState==="visible") setWake(true); });
+
+function enterFS(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(()=>{}); }
+function toggleFS(){ document.fullscreenElement ? document.exitFullscreen().catch(()=>{}) : enterFS(); }
+
+function startTest(i=0){
+  testing = true;
+  $("home").style.display="none";
+  $("stage").classList.add("on"); $("stage").setAttribute("aria-hidden","false");
+  $("bar").style.display="flex"; $("tag").style.display="flex";
+  if(optFs.checked) enterFS();
+  if(optWake.checked) setWake(true);
+  resize(); go(i);
+  setPlaying(optAuto.checked);
+  pokeUI();
+}
+function endTest(){
+  testing=false; setPlaying(false); cancelAnimationFrame(raf);
+  $("stage").classList.remove("on"); $("stage").setAttribute("aria-hidden","true");
+  $("bar").style.display="none"; $("tag").style.display="none";
+  $("picker").classList.remove("on"); $("home").style.display="block";
+  document.body.classList.remove("uihide","hidecursor");
+  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  setWake(false); setHash(location.pathname + location.search);
+  screenInfo();
+}
+
+/* auto-hide UI + cursor */
+function pokeUI(){
+  document.body.classList.remove("uihide","hidecursor");
+  clearTimeout(uiTimer);
+  if(testing && !$("picker").classList.contains("on"))
+    uiTimer = setTimeout(()=>document.body.classList.add("uihide","hidecursor"), 2600);
+}
+addEventListener("mousemove", ()=>{ if(testing) pokeUI(); });
+
+/* ============================== INPUT ============================== */
+$("startBtn").onclick = () => startTest(0);
+$("btnHome").onclick = endTest;
+$("btnNext").onclick = e => { e.stopPropagation(); next(); };
+$("btnPrev").onclick = e => { e.stopPropagation(); prev(); };
+$("btnPlay").onclick = e => { e.stopPropagation(); setPlaying(!playing); pokeUI(); };
+$("btnFs").onclick   = e => { e.stopPropagation(); toggleFS(); };
+$("btnList").onclick = e => { e.stopPropagation(); togglePicker(); };
+$("btnFix").onclick  = e => { e.stopPropagation(); openFixWarn(); };
+function togglePicker(force){
+  const pk=$("picker"), on = force!==undefined?force:!pk.classList.contains("on");
+  pk.classList.toggle("on",on); pk.setAttribute("aria-hidden", String(!on)); pokeUI();
+}
+
+let lastTap=0, touchX=null, touchY=null;
+$("stage").addEventListener("click", e => {
+  const r = e.clientX / innerWidth;
+  if(r < 0.25) prev(); else if(r > 0.75) next(); else {
+    const now=Date.now();
+    if(now-lastTap < 300) toggleFS(); else { document.body.classList.contains("uihide") ? pokeUI() : document.body.classList.add("uihide","hidecursor"); }
+    lastTap = now;
+  }
+});
+$("stage").addEventListener("contextmenu", e => { e.preventDefault(); prev(); });
+let wheelLock=0;
+$("stage").addEventListener("wheel", e => {
+  const now=Date.now(); if(now-wheelLock<180) return; wheelLock=now;
+  e.deltaY>0 ? next() : prev();
+}, {passive:true});
+$("stage").addEventListener("touchstart", e => { touchX=e.touches[0].clientX; touchY=e.touches[0].clientY; }, {passive:true});
+$("stage").addEventListener("touchend", e => {
+  if(touchX===null) return;
+  const dx=e.changedTouches[0].clientX-touchX, dy=e.changedTouches[0].clientY-touchY;
+  if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)) dx<0 ? next() : prev();
+  touchX=touchY=null;
+}, {passive:true});
+
+addEventListener("keydown", e => {
+  if(fixOn){ if(e.key==="Escape") stopFixer(); return; }
+  if($("fixWarn").classList.contains("on")){ if(e.key==="Escape") $("fixWarn").classList.remove("on"); return; }
+  if(!testing){ if(e.key==="Enter") startTest(0); return; }
+  switch(e.key){
+    case "ArrowRight": case "ArrowDown": next(); break;
+    case "ArrowLeft":  case "ArrowUp":   prev(); break;
+    case " ": e.preventDefault(); setPlaying(!playing); pokeUI(); break;
+    case "f": case "F": toggleFS(); break;
+    case "h": case "H": document.body.classList.toggle("uihide"); document.body.classList.toggle("hidecursor"); break;
+    case "l": case "L": togglePicker(); break;
+    case "Escape": case "q": case "Q":
+      if($("picker").classList.contains("on")) togglePicker(false); else endTest(); break;
+    default:
+      if(/^[1-9]$/.test(e.key)) go(+e.key-1);
+  }
+});
+
+/* ============================== HOME BUILDERS ============================== */
+function buildChips(){
+  const box=$("chips"); box.innerHTML="";
+  P.slice(0,12).forEach((p,i)=>{
+    const b=document.createElement("button"); b.className="chip"; b.type="button";
+    b.style.background=p.c; b.setAttribute("aria-label", nameOf(p));
+    b.innerHTML="<span>"+nameOf(p)+"</span>";
+    b.onclick=()=>startTest(i);
+    box.appendChild(b);
+  });
+}
+function buildGrid(){
+  const box=$("grid"); box.innerHTML="";
+  P.forEach((p,i)=>{
+    const b=document.createElement("button"); b.className="cell"+(i===idx?" sel":""); b.type="button";
+    b.innerHTML='<div class="sw" style="background:'+p.c+'"></div><div class="nm">'+nameOf(p)+(hexOf(p)?"<small>"+hexOf(p)+"</small>":"")+"</div>";
+    b.onclick=()=>{ go(i); togglePicker(false); };
+    box.appendChild(b);
+  });
+}
+function screenInfo(){
+  $("infRes").textContent  = screen.width+" × "+screen.height;
+  $("infView").textContent = innerWidth+" × "+innerHeight;
+  $("infDpr").textContent  = (window.devicePixelRatio||1).toFixed(2).replace(/0+$/,"").replace(/\.$/,"")+"x";
+  $("infDepth").textContent= screen.colorDepth+"-bit";
+}
+
+/* ============================== FIXER ============================== */
+let fixOn=false, fixTimer=null, fixClock=null, fixStart=0, fixFull=false, fixFromTest=false;
+const FIXCOLS=["#f00","#0f0","#00f","#fff","#000","#ff0","#0ff","#f0f"];
+function openFixWarn(fromTest){ fixFromTest=!!fromTest || testing; $("fixWarn").classList.add("on"); }
+$("fixOpenBtn").onclick = () => openFixWarn(false);
+$("fixCancel").onclick  = () => $("fixWarn").classList.remove("on");
+$("fixGo").onclick = () => { $("fixWarn").classList.remove("on"); startFixer(); };
+
+function startFixer(){
+  fixOn=true; fixFull=false;
+  $("home").style.display="none";
+  $("fixlayer").classList.add("on"); $("fixui").classList.add("on");
+  if(optFs.checked) enterFS();
+  if(optWake.checked) setWake(true);
+  let n=0;
+  const tick=()=>{ $("fixbox").style.background = FIXCOLS[n++ % FIXCOLS.length]; };
+  const arm=()=>{ clearInterval(fixTimer); fixTimer=setInterval(tick, 1000/(+$("fixSpeed").value)); };
+  tick(); arm();
+  $("fixSpeed").oninput=arm;
+  fixStart=Date.now();
+  fixClock=setInterval(()=>{
+    const s=Math.floor((Date.now()-fixStart)/1000);
+    $("fixtime").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+  },250);
+}
+function stopFixer(){
+  fixOn=false; clearInterval(fixTimer); clearInterval(fixClock);
+  $("fixlayer").classList.remove("on"); $("fixui").classList.remove("on");
+  $("fixbox").style.cssText="";
+  if(fixFromTest && testing){ $("home").style.display="none"; pokeUI(); }
+  else { $("home").style.display="block"; if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); setWake(false); }
+}
+$("fixStop").onclick = stopFixer;
+$("fixSize").oninput = e => { const v=+e.target.value, b=$("fixbox");
+  const r=b.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+  b.style.width=v+"px"; b.style.height=v+"px"; b.style.left=(cx-v/2)+"px"; b.style.top=(cy-v/2)+"px"; };
+$("fixFull").onclick = () => { fixFull=!fixFull; const b=$("fixbox");
+  if(fixFull){ b.dataset.prev=b.style.cssText; b.style.cssText="left:0;top:0;width:100%;height:100%;cursor:default"; }
+  else b.style.cssText=b.dataset.prev||""; };
+/* drag fixbox (mouse + touch) */
+(()=>{ const b=$("fixbox"); let drag=null;
+  const start=e=>{ if(fixFull) return; const t=e.touches?e.touches[0]:e, r=b.getBoundingClientRect();
+    drag={dx:t.clientX-r.left, dy:t.clientY-r.top}; };
+  const move=e=>{ if(!drag) return; const t=e.touches?e.touches[0]:e;
+    b.style.left=(t.clientX-drag.dx)+"px"; b.style.top=(t.clientY-drag.dy)+"px"; };
+  const end=()=>drag=null;
+  b.addEventListener("mousedown",start); addEventListener("mousemove",move); addEventListener("mouseup",end);
+  b.addEventListener("touchstart",start,{passive:true}); addEventListener("touchmove",move,{passive:true}); addEventListener("touchend",end);
+})();
+
+/* ============================== SINGLE-FILE CLEANUP ============================== */
+/* Remove service-worker registrations left behind by older multi-file builds. */
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+}
+
+/* ============================== INIT ============================== */
+loadOpts(); applyLang(); resize();
+const deep = P.findIndex(p => "#"+p.id === location.hash);
+if(deep >= 0) startTest(deep);
+</script>
+</body>
+</html>
