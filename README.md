@@ -9,8 +9,8 @@ Ekranında **ölü veya takılı piksel** var mı, saniyeler içinde öğren.
 **[ubeytkzltsss.github.io/Dead-Pixel-Test](https://ubeytkzltsss.github.io/Dead-Pixel-Test/)**
 
 Web sürümünün tamamı tek bir [`index.html`](index.html) dosyasındadır:
-HTML, CSS, JavaScript, favicon ve alttaki küçük Boykisser görseli bu dosyanın
-içindedir. Harici CSS/JS/görsel dosyası yoktur; indirip çift tıklaman yeterli.
+HTML, CSS, JavaScript, favicon bu dosyanın içindedir. 
+Harici CSS/JS/görsel dosyası yoktur; indirip çift tıklaman yeterli.
 Monitör, telefon, tablet, laptop ve Smart TV tarayıcılarında çalışır.
 
 ### Masaüstü sürümü — tek Python dosyası
