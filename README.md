@@ -6,7 +6,7 @@ Ekranında **ölü veya takılı piksel** var mı, saniyeler içinde öğren.
 
 ### Web sürümü — tek dosya
 
-**[ubeytkzltsss.github.io/Dead-Pixel-Test](https://ubeytkzltsss.github.io/Dead-Pixel-Test/)**
+**https://deadpixeltest.netlify.app/**
 
 Web sürümünün tamamı tek bir [`index.html`](index.html) dosyasındadır:
 HTML, CSS, JavaScript, favicon bu dosyanın içindedir. 
