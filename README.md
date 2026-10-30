@@ -27,9 +27,7 @@ py dead_pixel_test.py
 
 Python 3.8+ ve standart `tkinter` yeterlidir; ek paket gerekmez.
 
-Hazır Windows, macOS ve Linux programları, `v1.0.0` gibi bir sürüm etiketi
-gönderildiğinde GitHub Actions tarafından otomatik derlenip
-[Releases](https://github.com/ubeytkzltsss/Dead-Pixel-Test/releases) alanına eklenir.
+
 
 ## Özellikler
 
@@ -79,17 +77,13 @@ python3 dead_pixel_test.py --auto 3 --pattern red
 
 ```text
 Dead-Pixel-Test/
-├── .github/workflows/build.yml   # kontrol + Pages + masaüstü derleme
-├── .gitignore
 ├── LICENSE
 ├── README.md
 ├── dead_pixel_test.py            # tek dosyalık masaüstü sürümü
 └── index.html                    # tek dosyalık web sürümü
 ```
 
-Yalnızca 6 dosya. `main` dalına gönderilen değişiklikler GitHub Pages sitesini
-günceller; `v*` etiketleri masaüstü sürümlerini ve tek dosyalık web kopyasını
-GitHub Release olarak yayımlar.
+
 
 ## English summary
 
@@ -97,6 +91,7 @@ The complete web app is self-contained in `index.html`: open it in any browser
 and inspect 22 fullscreen patterns for dead or stuck pixels. A dependency-free
 single-file Python/Tkinter desktop edition is included in
 `dead_pixel_test.py`.
+
 
 <p align="center">
 <img width="100" height="99" alt="resim" src="https://github.com/user-attachments/assets/7e14465d-bdef-421e-bc16-199a8646792e" />
